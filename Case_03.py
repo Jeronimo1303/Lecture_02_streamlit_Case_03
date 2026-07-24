@@ -124,6 +124,3 @@ if len(numeric_columns) > 1:
     sns.scatterplot(data=df, x=x, y=y, ax=ax)
 
     st.pyplot(fig)
-
-else:
-    st.info("Upload a CSV file to begin the analysis.")
