@@ -18,7 +18,7 @@ st.write("Upload a CSV file to automatically generate an exploratory data analys
 # -------------------------------------------------------
 
 
-df = pd.read_csv("Lecture_02_streamlit_Case_03\\agro_colombia.csv")
+df = pd.read_csv("agro_colombia.csv")
 
 # ===================================================
 # Dataset Overview
