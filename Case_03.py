@@ -17,118 +17,113 @@ st.write("Upload a CSV file to automatically generate an exploratory data analys
 # File uploader
 # -------------------------------------------------------
 
-uploaded_file = st.file_uploader(
-    "Lecture_02_streamlit_Case_03\\agro_colombia.csv", type=["csv"]
+
+df = pd.read_csv("Lecture_02_streamlit_Case_03\\agro_colombia.csv")
+
+# ===================================================
+# Dataset Overview
+# ===================================================
+
+st.header("Dataset Overview")
+
+c1, c2, c3, c4 = st.columns(4)
+
+c1.metric("Rows", df.shape[0])
+c2.metric("Columns", df.shape[1])
+c3.metric("Missing Values", int(df.isna().sum().sum()))
+c4.metric("Duplicated Rows", int(df.duplicated().sum()))
+
+st.subheader("Preview")
+
+st.dataframe(df.head())
+
+# ===================================================
+# Data Types
+# ===================================================
+
+st.header("Column Information")
+
+info = pd.DataFrame(
+    {"Type": df.dtypes, "Missing": df.isnull().sum(), "Unique": df.nunique()}
 )
 
-if uploaded_file is not None:
+st.dataframe(info)
 
-    df = pd.read_csv(uploaded_file)
+# ===================================================
+# Summary Statistics
+# ===================================================
 
-    # ===================================================
-    # Dataset Overview
-    # ===================================================
+st.header("Summary Statistics")
 
-    st.header("Dataset Overview")
+st.dataframe(df.describe(include="all").T)
 
-    c1, c2, c3, c4 = st.columns(4)
+# ===================================================
+# Missing Values
+# ===================================================
 
-    c1.metric("Rows", df.shape[0])
-    c2.metric("Columns", df.shape[1])
-    c3.metric("Missing Values", int(df.isna().sum().sum()))
-    c4.metric("Duplicated Rows", int(df.duplicated().sum()))
+st.header("Missing Values")
 
-    st.subheader("Preview")
+missing = df.isnull().sum().sort_values(ascending=False)
 
-    st.dataframe(df.head())
+st.bar_chart(missing)
 
-    # ===================================================
-    # Data Types
-    # ===================================================
+# ===================================================
+# Univariate Analysis
+# ===================================================
 
-    st.header("Column Information")
+st.header("Variable Distribution")
 
-    info = pd.DataFrame(
-        {"Type": df.dtypes, "Missing": df.isnull().sum(), "Unique": df.nunique()}
-    )
+numeric_columns = df.select_dtypes(include="number").columns
 
-    st.dataframe(info)
+if len(numeric_columns) > 0:
 
-    # ===================================================
-    # Summary Statistics
-    # ===================================================
+    column = st.selectbox("Select a numeric variable", numeric_columns)
 
-    st.header("Summary Statistics")
+    fig, ax = plt.subplots(figsize=(8, 4))
+    sns.histplot(df[column], kde=True, ax=ax)
 
-    st.dataframe(df.describe(include="all").T)
+    st.pyplot(fig)
 
-    # ===================================================
-    # Missing Values
-    # ===================================================
+    fig, ax = plt.subplots(figsize=(8, 2))
+    sns.boxplot(x=df[column], ax=ax)
 
-    st.header("Missing Values")
+    st.pyplot(fig)
 
-    missing = df.isnull().sum().sort_values(ascending=False)
+# ===================================================
+# Correlation
+# ===================================================
 
-    st.bar_chart(missing)
+if len(numeric_columns) > 1:
 
-    # ===================================================
-    # Univariate Analysis
-    # ===================================================
+    st.header("Correlation Matrix")
 
-    st.header("Variable Distribution")
+    corr = df[numeric_columns].corr(numeric_only=True)
 
-    numeric_columns = df.select_dtypes(include="number").columns
+    fig, ax = plt.subplots(figsize=(10, 8))
 
-    if len(numeric_columns) > 0:
+    sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
 
-        column = st.selectbox("Select a numeric variable", numeric_columns)
+    st.pyplot(fig)
 
-        fig, ax = plt.subplots(figsize=(8, 4))
-        sns.histplot(df[column], kde=True, ax=ax)
+# ===================================================
+# Scatter Plot
+# ===================================================
 
-        st.pyplot(fig)
+if len(numeric_columns) > 1:
 
-        fig, ax = plt.subplots(figsize=(8, 2))
-        sns.boxplot(x=df[column], ax=ax)
+    st.header("Relationship Between Variables")
 
-        st.pyplot(fig)
+    c1, c2 = st.columns(2)
 
-    # ===================================================
-    # Correlation
-    # ===================================================
+    x = c1.selectbox("X Axis", numeric_columns, key="x")
 
-    if len(numeric_columns) > 1:
+    y = c2.selectbox("Y Axis", numeric_columns, index=1, key="y")
 
-        st.header("Correlation Matrix")
+    fig, ax = plt.subplots(figsize=(8, 5))
 
-        corr = df[numeric_columns].corr(numeric_only=True)
+    sns.scatterplot(data=df, x=x, y=y, ax=ax)
 
-        fig, ax = plt.subplots(figsize=(10, 8))
-
-        sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
-
-        st.pyplot(fig)
-
-    # ===================================================
-    # Scatter Plot
-    # ===================================================
-
-    if len(numeric_columns) > 1:
-
-        st.header("Relationship Between Variables")
-
-        c1, c2 = st.columns(2)
-
-        x = c1.selectbox("X Axis", numeric_columns, key="x")
-
-        y = c2.selectbox("Y Axis", numeric_columns, index=1, key="y")
-
-        fig, ax = plt.subplots(figsize=(8, 5))
-
-        sns.scatterplot(data=df, x=x, y=y, ax=ax)
-
-        st.pyplot(fig)
+    st.pyplot(fig)
 
 else:
     st.info("Upload a CSV file to begin the analysis.")
