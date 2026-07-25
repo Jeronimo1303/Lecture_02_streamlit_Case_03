@@ -23,7 +23,6 @@ st.markdown(
     <style>
     /* Fondo general claro */
     .main {
-        background: linear-gradient(135deg, #0F2C3E 0%, #214A64 100%);
         color: #E6F1F7;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
