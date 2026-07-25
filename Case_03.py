@@ -118,6 +118,37 @@ df = cargar_datos()
 col_riego = next((c for c in df.columns if "riego" in c.lower()), None)
 col_prod = next((c for c in df.columns if "prod" in c.lower()), None)
 
+
+def normalizar_riego(series: pd.Series) -> pd.Series:
+    """Convierte valores de riego como True/False, sí/no o texto a dos etiquetas claras."""
+    valores = series.astype(str).str.strip().str.lower()
+    mapa = {
+        "true": "Con Riego",
+        "1": "Con Riego",
+        "si": "Con Riego",
+        "yes": "Con Riego",
+        "t": "Con Riego",
+        "con riego": "Con Riego",
+        "conriego": "Con Riego",
+        "false": "Sin Riego",
+        "0": "Sin Riego",
+        "no": "Sin Riego",
+        "f": "Sin Riego",
+        "sin riego": "Sin Riego",
+        "sinriego": "Sin Riego",
+    }
+    resultado = valores.map(mapa)
+    resultado = resultado.fillna(valores)
+    resultado = resultado.replace({"con riego": "Con Riego", "sin riego": "Sin Riego"})
+    resultado = resultado.replace({"true": "Con Riego", "false": "Sin Riego"})
+    return resultado.where(resultado.isin(["Con Riego", "Sin Riego"]), "Sin Riego")
+
+
+if col_riego is not None:
+    df["Riego_Categorico"] = normalizar_riego(df[col_riego])
+else:
+    df["Riego_Categorico"] = pd.Series(["Sin Riego"] * len(df), index=df.index)
+
 # ==========================================
 # MENÚ NAVEGACIÓN (HAMBURGER / SIDEBAR)
 # ==========================================
@@ -283,9 +314,9 @@ elif seccion == "⚖️ Riego vs. Producción (Boxplot)":
             st.markdown("### 🔵 Distribución Interactiva (Plotly)")
             fig_box_plotly = px.box(
                 df,
-                x=col_riego,
+                x="Riego_Categorico",
                 y=col_prod,
-                color=col_riego,
+                color="Riego_Categorico",
                 color_discrete_map={"Con Riego": "#10B981", "Sin Riego": "#F59E0B"},
                 points="outliers",
                 title="Producción por Condición de Riego",
@@ -310,7 +341,7 @@ elif seccion == "⚖️ Riego vs. Producción (Boxplot)":
 
             sns.boxplot(
                 data=df,
-                x=col_riego,
+                x="Riego_Categorico",
                 y=col_prod,
                 palette={"Con Riego": "#10B981", "Sin Riego": "#F59E0B"},
                 ax=ax,
@@ -319,7 +350,7 @@ elif seccion == "⚖️ Riego vs. Producción (Boxplot)":
             )
             sns.stripplot(
                 data=df,
-                x=col_riego,
+                x="Riego_Categorico",
                 y=col_prod,
                 color="black",
                 alpha=0.2,
@@ -347,7 +378,7 @@ elif seccion == "⚖️ Riego vs. Producción (Boxplot)":
         st.subheader("📊 Comparativo Cuantitativo de Rendimiento")
 
         stats_riego = (
-            df.groupby(col_riego)[col_prod]
+            df.groupby("Riego_Categorico")[col_prod]
             .agg(
                 Mediana="median",
                 Promedio="mean",
@@ -379,7 +410,7 @@ elif seccion == "🎨 Galería de Gráficos (Plotly & Seaborn)":
     num_cols = df.select_dtypes(include=["number"]).columns.tolist()
     cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
 
-    tab1, tab2 = st.subplots(
+    tab1, tab2 = st.tabs(
         [
             "📊 Visualizaciones Plotly (Dinámicas)",
             "🎨 Visualizaciones Seaborn (Estáticas)",
