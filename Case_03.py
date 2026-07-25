@@ -430,7 +430,6 @@ elif seccion == "🎨 Galería de Gráficos (Plotly & Seaborn)":
                 y=var_y,
                 color=col_color,
                 color_discrete_sequence=["#10B981", "#3B82F6", "#F59E0B", "#EF4444"],
-                trendline="ols" if not col_color else None,
                 title=f"Relación entre {var_x} y {var_y}",
             )
             fig_scatter.update_layout(
