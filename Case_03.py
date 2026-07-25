@@ -25,14 +25,14 @@ st.markdown(
     .main .block-container {
         padding-top: 1rem;
         padding-bottom: 2rem;
-        background: linear-gradient(135deg, #f8fcff 0%, #f4fbf8 100%);
+        background: linear-gradient(135deg, #fcfefe 0%, #f7fbff 100%);
     }
     .stMetric {
-        background: linear-gradient(135deg, #ffffff 0%, #f3f9ff 100%);
-        border: 1px solid #dbeafe;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+        border: 1px solid #cbd5e1;
         border-radius: 0.85rem;
         padding: 0.8rem 0.9rem;
-        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     }
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
@@ -42,6 +42,12 @@ st.markdown(
     }
     .stTextInput>div>div>input, .stSelectbox>div>div>div {
         border-radius: 0.6rem;
+    }
+    table, th, td {
+        border: 1px solid #cbd5e1 !important;
+    }
+    th {
+        background-color: #eef6ff !important;
     }
     </style>
     """,
@@ -110,7 +116,12 @@ if section == "Resumen":
         unsafe_allow_html=True,
     )
 
-    st.subheader("📈 Boxplot comparativo: Producción con y sin riego")
+    st.subheader("� Insight clave")
+    st.info(
+        "El resumen general ya no está vacío: aquí puedes ver de un vistazo la cantidad de datos, la calidad del dataset y los puntos que conviene explorar primero."
+    )
+
+    st.subheader("�📈 Boxplot comparativo: Producción con y sin riego")
     st.caption(
         "Esta comparación permite ver si la presencia de riego cambia de forma marcada la producción de las fincas."
     )
