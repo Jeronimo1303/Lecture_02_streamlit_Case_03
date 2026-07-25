@@ -4,6 +4,7 @@ import plotly.express as px
 import json
 from google import genai
 from google.genai import types
+from groq import Groq
 
 # ---------------------------------------------------------
 # Configuración de la Página
@@ -16,14 +17,31 @@ st.caption(
 )
 
 # ---------------------------------------------------------
-# Barra Lateral - Configuración de API Key
+# Barra Lateral - Configuración de Proveedor y API Key
 # ---------------------------------------------------------
 with st.sidebar:
     st.header("⚙️ Configuración")
-    api_key = st.text_input(
-        "Gemini API Key", type="password", help="Ingresa tu API Key de Google AI Studio"
-    )
-    selected_model = st.selectbox("Modelo", ["gemini-2.5-flash", "gemini-2.5-pro"])
+
+    provider = st.radio("Selecciona el Proveedor de IA:", ["Groq", "Google Gemini"])
+
+    if provider == "Groq":
+        api_key = st.text_input(
+            "Groq API Key", type="password", help="Ingresa tu API Key de Groq Cloud"
+        )
+        selected_model = st.selectbox(
+            "Modelo Groq",
+            ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+        )
+    else:
+        api_key = st.text_input(
+            "Gemini API Key",
+            type="password",
+            help="Ingresa tu API Key de Google AI Studio",
+        )
+        selected_model = st.selectbox(
+            "Modelo Gemini", ["gemini-2.5-flash", "gemini-2.5-pro"]
+        )
+
     st.markdown("---")
     st.markdown("**¿Cómo funciona?**")
     st.markdown(
@@ -43,60 +61,106 @@ Finalmente, América Latina obtuvo $190,000 en ventas, $130,000 en costos y oper
 # ---------------------------------------------------------
 st.subheader("1. Texto de Entrada")
 input_text = st.text_area(
-    "Parrafo con cifras o métricas:", value=DEFAULT_TEXT, height=150
+    "Párrafo con cifras o métricas:", value=DEFAULT_TEXT, height=150
 )
 
 
 # ---------------------------------------------------------
-# Función para Extracción de Datos
+# Funciones para Gemini
+# ---------------------------------------------------------
+def call_gemini(
+    text: str, prompt_system: str, api_key: str, model_name: str, is_json: bool = False
+) -> str:
+    client = genai.Client(api_key=api_key)
+    config = types.GenerateContentConfig(temperature=0.1)
+    if is_json:
+        config.response_mime_type = "application/json"
+
+    full_prompt = f"{prompt_system}\n\nTexto/Datos:\n{text}"
+    response = client.models.generate_content(
+        model=model_name, contents=full_prompt, config=config
+    )
+    return response.text
+
+
+# ---------------------------------------------------------
+# Funciones para Groq
+# ---------------------------------------------------------
+def call_groq(
+    text: str, prompt_system: str, api_key: str, model_name: str, is_json: bool = False
+) -> str:
+    client = Groq(api_key=api_key)
+
+    kwargs = {
+        "model": model_name,
+        "messages": [
+            {"role": "system", "content": prompt_system},
+            {"role": "user", "content": text},
+        ],
+        "temperature": 0.1,
+    }
+
+    if is_json:
+        kwargs["response_format"] = {"type": "json_object"}
+
+    response = client.chat.completions.create(**kwargs)
+    return response.choices[0].message.content
+
+
+# ---------------------------------------------------------
+# Función Unificada de Extracción
 # ---------------------------------------------------------
 def extract_data_with_llm(
-    text: str, client: genai.Client, model_name: str
+    text: str, provider: str, api_key: str, model_name: str
 ) -> pd.DataFrame:
-    prompt = f"""
-    Analiza el siguiente texto y extrae TODAS las entidades, métricas y cifras numéricas contenidas en él.
-    Organízalas como una lista de objetos donde cada objeto representa una fila de una tabla comparable.
+    system_prompt = """
+    Analiza el texto recibido y extrae TODAS las entidades, métricas y cifras numéricas contenidas en él.
+    Organízalas como un objeto JSON donde la clave principal sea "datos" y contenga una lista de objetos.
+    Cada objeto de la lista representa una fila de una tabla comparable.
     Asegúrate de convertir las cifras numéricas a números puros (float o int), sin símbolos de moneda ni comas.
-
-    Texto:
-    {text}
+    Ejemplo de respuesta esperada:
+    {
+      "datos": [
+        {"Entidad": "A", "Ventas": 100, "Empleados": 10},
+        {"Entidad": "B", "Ventas": 200, "Empleados": 20}
+      ]
+    }
     """
 
-    # Forzamos respuesta en JSON estructurado
-    response = client.models.generate_content(
-        model=model_name,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json", temperature=0.1
-        ),
-    )
+    if provider == "Google Gemini":
+        raw_response = call_gemini(
+            text, system_prompt, api_key, model_name, is_json=True
+        )
+    else:
+        raw_response = call_groq(text, system_prompt, api_key, model_name, is_json=True)
 
-    data = json.loads(response.text)
+    data = json.loads(raw_response)
 
-    # Manejar posibles variaciones de estructura del JSON retornado
+    # Manejar variaciones en la estructura devuelta por el JSON
     if isinstance(data, dict):
-        # Si el LLM envolvió la lista en una clave (ej: {"datos": [...]})
-        first_key = list(data.keys())[0]
-        data = data[first_key]
+        if "datos" in data:
+            data = data["datos"]
+        else:
+            first_key = list(data.keys())[0]
+            if isinstance(data[first_key], list):
+                data = data[first_key]
 
     return pd.DataFrame(data)
 
 
 # ---------------------------------------------------------
-# Función para Generar Insights
+# Función Unificada para Insights
 # ---------------------------------------------------------
 def generate_eda_insights(
-    df: pd.DataFrame, client: genai.Client, model_name: str
+    df: pd.DataFrame, provider: str, api_key: str, model_name: str
 ) -> str:
-    prompt = f"""
-    Eres un analista de datos experto. Revisa la siguiente tabla resumida y proporciona 3 a 5 hallazgos clave o insights relevantes en formato markdown (bullet points).
-    
-    Datos (CSV):
-    {df.to_csv(index=False)}
-    """
+    system_prompt = "Eres un analista de datos experto. Revisa la tabla entregada y proporciona de 3 a 5 hallazgos clave o insights en formato markdown (bullet points)."
+    data_csv = df.to_csv(index=False)
 
-    response = client.models.generate_content(model=model_name, contents=prompt)
-    return response.text
+    if provider == "Google Gemini":
+        return call_gemini(data_csv, system_prompt, api_key, model_name, is_json=False)
+    else:
+        return call_groq(data_csv, system_prompt, api_key, model_name, is_json=False)
 
 
 # ---------------------------------------------------------
@@ -104,18 +168,18 @@ def generate_eda_insights(
 # ---------------------------------------------------------
 if st.button("🚀 Extraer Datos y Analizar", type="primary"):
     if not api_key:
-        st.error("⚠️ Por favor ingresa tu API Key de Gemini en la barra lateral.")
+        st.error(f"⚠️ Por favor ingresa tu API Key de {provider} en la barra lateral.")
     elif not input_text.strip():
         st.warning("⚠️ El texto de entrada está vacío.")
     else:
         try:
-            client = genai.Client(api_key=api_key)
-
-            with st.spinner("Procesando texto con el LLM y estructurando datos..."):
-                df = extract_data_with_llm(input_text, client, selected_model)
+            with st.spinner(f"Procesando con {provider} ({selected_model})..."):
+                df = extract_data_with_llm(
+                    input_text, provider, api_key, selected_model
+                )
                 st.session_state["df"] = df
                 st.session_state["insights"] = generate_eda_insights(
-                    df, client, selected_model
+                    df, provider, api_key, selected_model
                 )
 
         except Exception as e:
