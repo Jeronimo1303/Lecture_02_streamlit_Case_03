@@ -1,7 +1,9 @@
-import streamlit as st
-import pandas as pd
-import plotly.express as px
 import json
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import streamlit as st
 from google import genai
 from google.genai import types
 from groq import Groq
@@ -219,20 +221,29 @@ if "df" in st.session_state:
     st.subheader("4. Visualización de Datos (EDA)")
 
     if num_cols and cat_cols:
+        sns.set_theme(style="whitegrid")
         c1, c2 = st.columns(2)
 
         with c1:
             x_axis = st.selectbox("Eje X (Categoría):", cat_cols, index=0)
             y_axis = st.selectbox("Eje Y (Métrica Principal):", num_cols, index=0)
-            fig_bar = px.bar(
-                df,
+
+            fig_bar, ax_bar = plt.subplots(figsize=(8, 4))
+            sns.barplot(
+                data=df,
                 x=x_axis,
                 y=y_axis,
-                title=f"{y_axis} por {x_axis}",
-                text_auto=True,
-                template="plotly_white",
+                estimator="sum",
+                errorbar=None,
+                palette="viridis",
+                ax=ax_bar,
             )
-            st.plotly_chart(fig_bar, use_container_width=True)
+            ax_bar.set_title(f"{y_axis} por {x_axis}")
+            ax_bar.set_xlabel(x_axis)
+            ax_bar.set_ylabel(y_axis)
+            ax_bar.tick_params(axis="x", rotation=30)
+            plt.tight_layout()
+            st.pyplot(fig_bar, use_container_width=True)
 
         with c2:
             if len(num_cols) >= 2:
@@ -241,20 +252,38 @@ if "df" in st.session_state:
                     num_cols,
                     index=min(1, len(num_cols) - 1),
                 )
-                fig_scatter = px.scatter(
-                    df,
+
+                fig_scatter, ax_scatter = plt.subplots(figsize=(8, 4))
+                sns.scatterplot(
+                    data=df,
                     x=y_axis,
                     y=y_axis2,
-                    color=x_axis if x_axis else None,
-                    title=f"Relación: {y_axis} vs {y_axis2}",
-                    template="plotly_white",
+                    hue=x_axis if x_axis else None,
+                    palette="deep",
+                    ax=ax_scatter,
                 )
-                st.plotly_chart(fig_scatter, use_container_width=True)
+                ax_scatter.set_title(f"Relación: {y_axis} vs {y_axis2}")
+                ax_scatter.set_xlabel(y_axis)
+                ax_scatter.set_ylabel(y_axis2)
+                plt.tight_layout()
+                st.pyplot(fig_scatter, use_container_width=True)
             else:
-                fig_pie = px.pie(
-                    df, names=x_axis, values=y_axis, title=f"Distribución de {y_axis}"
+                fig_dist, ax_dist = plt.subplots(figsize=(8, 4))
+                sns.barplot(
+                    data=df,
+                    x=x_axis,
+                    y=y_axis,
+                    estimator="sum",
+                    errorbar=None,
+                    palette="viridis",
+                    ax=ax_dist,
                 )
-                st.plotly_chart(fig_pie, use_container_width=True)
+                ax_dist.set_title(f"Distribución de {y_axis}")
+                ax_dist.set_xlabel(x_axis)
+                ax_dist.set_ylabel(y_axis)
+                ax_dist.tick_params(axis="x", rotation=30)
+                plt.tight_layout()
+                st.pyplot(fig_dist, use_container_width=True)
     else:
         st.info(
             "No se encontraron suficientes columnas numéricas y categóricas combinadas para generar gráficos dinámicos."
