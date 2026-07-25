@@ -227,7 +227,11 @@ if seccion == "🏠 Resumen Cualitativo":
     st.markdown("---")
     st.subheader("🏷️ Distribución Categórica Principal")
 
-    cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
+    cat_cols = [
+        c
+        for c in df.select_dtypes(include=["object", "category"]).columns.tolist()
+        if c.lower() != "id_finca"
+    ]
     if cat_cols:
         col_sel = st.selectbox(
             "Seleccione variable categórica para analizar:", cat_cols
