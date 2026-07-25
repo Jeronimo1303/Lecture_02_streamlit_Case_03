@@ -159,11 +159,10 @@ seccion = st.sidebar.radio(
         "📊 Análisis Cuantitativo",
         "⚖️ Riego vs. Producción (Boxplot)",
         "🎨 Galería de Gráficos (Plotly & Seaborn)",
-        "🤖 Agente de IA (Llama 3.3)",
+        "🤖 Asistente de Interpretación de Datos",
     ],
 )
 
-# Campo para pedir la API Key en la barra lateral
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔑 Configuración de API")
 groq_api_key = st.sidebar.text_input(
@@ -483,70 +482,109 @@ elif seccion == "🎨 Galería de Gráficos (Plotly & Seaborn)":
             st.pyplot(fig_hist)
 
 # ==========================================
-# SECCIÓN 5: AGENTE DE IA (LLAMA 3.3 VIA GROQ)
+# SECCIÓN 5: AGENTE DE IA ESPECIALIZADO EN DATOS
 # ==========================================
-elif seccion == "🤖 Agente de IA (Llama 3.3)":
-    st.title("🤖 Agente Experto Agroecológico & Análisis de Datos")
+elif seccion == "🤖 Asistente de Interpretación de Datos":
+    st.title("🤖 Asistente Analista de Datos e Interpretación")
 
     st.markdown(
         """
     <div class="insight-box">
-    <b>💡 Asistente Inteligente Agro Colombia:</b><br>
-    Interactúa con nuestro agente impulsado por <b>Llama 3.3 (70B)</b> de Meta vía Groq. 
-    Puedes hacerle preguntas sobre los datos cargados, pedirle recomendaciones técnicas de cultivo, 
-    o solicitar resúmenes ejecutivos del sector.
+    <b>📊 Tu Interprete de Datos Personal:</b><br>
+    Este agente tiene acceso completo a la estructura del dataset, métricas descriptivas, matrices de correlación y desglose por riego. 
+    <b>Pregúntale cualquier duda sobre lo que ves en las tablas, gráficos, outliers o patrones estadísticos del Dashboard.</b>
     </div>
     """,
         unsafe_allow_html=True,
     )
 
-    # Verificar si se proporcionó la API Key
     if not groq_api_key:
         st.warning(
             "⚠️ **Requiere API Key de Groq para funcionar.**\n\nPor favor, ingresa"
             " tu API Key en la **barra lateral (Sidebar)** bajo la sección"
-            " **'🔑 Configuración de API'** para desbloquear la interacción con el"
-            " Agente."
+            " **'🔑 Configuración de API'**."
         )
     else:
-        # Preparar resumen contextual de los datos para el system prompt
-        resumen_datos = f"""
-        Resumen del Dataset 'Agro Colombia':
-        - Filas totales: {len(df)}
-        - Columnas: {list(df.columns)}
-        - Muestra de primeras 5 filas:
-        {df.head(5).to_string()}
-        - Estadísticas descriptivas básicas:
-        {df.describe().to_string()}
-        """
+        # 1. Extracción y preparación contextual detallada
+        num_df = df.select_dtypes(include=["number"])
+        corr_matrix = num_df.corr().to_string() if len(num_df.columns) > 1 else "N/A"
 
+        stats_riego_str = "No disponible"
+        if col_riego and col_prod:
+            stats_riego_df = df.groupby("Riego_Categorico")[col_prod].agg(
+                ["median", "mean", "std", "min", "max"]
+            )
+            stats_riego_str = stats_riego_df.to_string()
+
+        frecuencias_cat = {}
+        for col in df.select_dtypes(include=["object", "category"]).columns:
+            frecuencias_cat[col] = df[col].value_counts().to_dict()
+
+        # System prompt especializado en interpretación de datos
         SYSTEM_PROMPT = f"""
-        Eres un Agente Experto Agroecológico y Analista de Datos Agrícolas para Colombia.
-        Tu objetivo es responder a las preguntas del usuario de forma profesional, clara, concisa y basada en datos.
-        
-        Tienes acceso directo al siguiente contexto sobre el conjunto de datos actual del proyecto:
-        {resumen_datos}
-        
-        Instrucciones:
-        1. Si la pregunta es sobre el dataset, utiliza el contexto suministrado para dar respuestas precisas.
-        2. Si la pregunta es sobre agronomía, sistemas de riego, cultivos o políticas agrícolas en Colombia, responde con rigor científico y conocimiento del sector.
-        3. Responde siempre en español con un tono profesional pero cercano.
+        Eres un Analista Senior de Datos e Inteligencia de Negocios especializado en el Sector Agrícola de Colombia.
+        Tu misión principal es **INTERPRETAR LOS DATOS Y EXPLICAR EL DASHBOARD** al usuario. Ayúdalo a comprender las gráficas, métricas, correlaciones y hallazgos.
+
+        --- INFORMACIÓN TÉCNICA DEL DASHBOARD ---
+        1. ESTRUCTURA DEL DATASET:
+           - Total de registros/filas: {len(df)}
+           - Total de columnas: {df.shape[1]}
+           - Nombres y tipos de columnas: {dict(df.dtypes.astype(str))}
+           - Valores nulos por columna: {dict(df.isnull().sum())}
+
+        2. ESTADÍSTICAS DESCRIPTIVAS NUMÉRICAS (Promedio, Mediana, Std, Min, Max, Quartiles):
+           {num_df.describe().to_string()}
+
+        3. ANÁLISIS DE IMPACTO DE RIEGO VS PRODUCCIÓN (Fila por condición):
+           {stats_riego_str}
+
+        4. MATRIZ DE CORRELACIÓN DE PEARSON:
+           {corr_matrix}
+
+        5. FRECUENCIAS DE VARIABLES CATEGÓRICAS:
+           {frecuencias_cat}
+
+        --- REGLAS DE RESPUESTA ---
+        - Explica de forma clara e intuitiva qué significan los números (ej. explica la diferencia entre media y mediana si hay sesgo).
+        - Si el usuario te pregunta sobre las gráficas de boxplot, explícale la interpretación del Riego (mediana, IQR, outliers).
+        - Mantén un lenguaje accesible, profesional y enfocado en Storytelling de Datos.
+        - Responde siempre en español.
         """
 
-        # Inicializar el historial del chat en la sesión
+        # Inicializar chat
         if "chat_messages" not in st.session_state:
             st.session_state.chat_messages = [
                 {
                     "role": "assistant",
                     "content": (
-                        "¡Hola! 👋 Soy tu Agente Agroecológico basado en Llama 3.3. ¿En"
-                        " qué te puedo ayudar hoy con los datos agrícolas o la"
-                        " producción en Colombia?"
+                        "¡Hola! 👋 Tengo acceso completo a todas las estadísticas, tablas"
+                        " y gráficos de este Dashboard. \n\n¿Qué gráfico o dato"
+                        " te gustaría que te interprete o te explique en detalle?"
                     ),
                 }
             ]
 
-        # Botón para limpiar el chat
+        # Botones de sugerencias de preguntas
+        st.markdown("##### 💡 Preguntas sugeridas para la IA:")
+        col_s1, col_s2, col_s3 = st.columns(3)
+        sugerencia = None
+        if col_s1.button("📊 Explícame el Boxplot de Riego vs Producción"):
+            sugerencia = (
+                "¿Qué conclusiones principales puedo sacar de las gráficas de Boxplot"
+                " de Riego vs Producción?"
+            )
+        if col_s2.button("📈 ¿Hay alguna correlación importante?"):
+            sugerencia = (
+                "¿Cuáles son las correlaciones más fuertes que se observan en la"
+                " matriz de datos?"
+            )
+        if col_s3.button("🔍 Interpretación general del dataset"):
+            sugerencia = (
+                "Dame un resumen ejecutivo de la calidad y distribución general de"
+                " los datos en pantalla."
+            )
+
+        # Botón Limpiar Chat
         col_title, col_clean = st.columns([4, 1])
         with col_clean:
             if st.button("🗑️ Limpiar Chat"):
@@ -554,29 +592,33 @@ elif seccion == "🤖 Agente de IA (Llama 3.3)":
                     {
                         "role": "assistant",
                         "content": (
-                            "Chat reiniciado. ¿Qué consulta deseas realizar sobre el sector"
-                            " agrícola?"
+                            "Chat reiniciado. ¿En qué análisis de datos te puedo colaborar?"
                         ),
                     }
                 ]
                 st.rerun()
 
-        # Mostrar mensajes previos
+        # Mostrar mensajes
         for msg in st.session_state.chat_messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-        # Entrada del usuario
-        if prompt_usuario := st.chat_input(
-            "Escribe tu pregunta sobre el dataset o temas agrícolas..."
-        ):
-            st.chat_message("user").markdown(prompt_usuario)
+        # Capturar la entrada del usuario o la sugerencia
+        prompt_final = (
+            sugerencia
+            if sugerencia
+            else st.chat_input("Pregúntale a la IA sobre cualquier dato o gráfica...")
+        )
+
+        if prompt_final:
+            if not sugerencia:
+                st.chat_message("user").markdown(prompt_final)
             st.session_state.chat_messages.append(
-                {"role": "user", "content": prompt_usuario}
+                {"role": "user", "content": prompt_final}
             )
 
             with st.chat_message("assistant"):
-                with st.spinner("Pensando respuesta con Llama 3.3..."):
+                with st.spinner("Analizando estadísticas con Llama 3.3..."):
                     try:
                         client = Groq(api_key=groq_api_key)
 
@@ -589,7 +631,7 @@ elif seccion == "🤖 Agente de IA (Llama 3.3)":
                         response = client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=mensajes_api,
-                            temperature=0.6,
+                            temperature=0.4,
                             max_tokens=1024,
                         )
 
@@ -602,6 +644,6 @@ elif seccion == "🤖 Agente de IA (Llama 3.3)":
 
                     except Exception as e:
                         st.error(
-                            f"Error al conectar con la API de Groq: {e}. Revisa que tu API"
-                            " Key sea correcta."
+                            f"Error al conectar con la API de Groq: {e}. Asegúrate de que"
+                            " la API Key ingresada sea válida."
                         )
