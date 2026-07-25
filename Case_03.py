@@ -8,10 +8,6 @@ try:
 except ImportError:  # pragma: no cover
     px = None
 
-# -------------------------------------------------------
-# Configuration
-# -------------------------------------------------------
-
 st.set_page_config(page_title="EDA Dashboard", page_icon="📊", layout="wide")
 
 sns.set_theme(style="whitegrid", context="talk")
@@ -49,14 +45,24 @@ st.markdown(
     th {
         background-color: #eef6ff !important;
     }
+    .hero-card {
+        background: linear-gradient(135deg, #f8fcff 0%, #eefdf7 100%);
+        border: 1px solid #dbeafe;
+        border-radius: 1rem;
+        padding: 1.2rem 1.3rem;
+        margin-bottom: 1rem;
+    }
+    .section-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.9rem;
+        padding: 1rem 1.1rem;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+        margin-bottom: 1rem;
+    }
     </style>
     """,
     unsafe_allow_html=True,
-)
-
-st.title("🌿 Exploratory Data Analysis")
-st.caption(
-    "Una mirada clara y guiada a los patrones del dataset, diseñada para que cada gráfica cuente una historia útil y fácil de entender."
 )
 
 
@@ -65,66 +71,52 @@ def load_default_data():
     return pd.read_csv("agro_colombia.csv")
 
 
-# -------------------------------------------------------
-# Data loading
-# -------------------------------------------------------
-
+uploaded_file = None
 with st.sidebar:
     st.header("🧭 Navegación")
-    section = st.radio(
-        "Ir a",
-        ["Resumen", "Análisis cuantitativo", "Análisis cualitativo", "Visualización"],
-        index=0,
-    )
-
-    st.divider()
-    st.subheader("Cargar datos")
-    uploaded_file = st.file_uploader("Subir un CSV", type=["csv"])
-    st.caption("Si no subes un archivo, se usará el dataset por defecto.")
+    st.caption("Sube un CSV para cambiar el dataset en tiempo real.")
+    uploaded_file = st.file_uploader("Cargar archivo", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 else:
     df = load_default_data()
 
-
-# -------------------------------------------------------
-# Helpers
-# -------------------------------------------------------
-
 numeric_columns = df.select_dtypes(include="number").columns.tolist()
 categorical_columns = df.select_dtypes(exclude="number").columns.tolist()
 
+st.title("🌿 Exploratory Data Analysis")
+st.caption(
+    "Una experiencia visual más libre y narrativa para explorar patrones, relaciones y anomalías del dataset."
+)
 
-# -------------------------------------------------------
-# Overview section
-# -------------------------------------------------------
+st.markdown(
+    """
+    <div class="hero-card">
+        <h4 style="margin:0 0 0.3rem 0;">Tu dashboard, rearmado para contar una historia más clara</h4>
+        <p style="margin:0; color:#334155;">Aquí puedes ver de forma rápida el contexto del dataset, las variables más relevantes y las gráficas que antes estaban dispersas.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-if section == "Resumen":
-    st.header("Resumen general")
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Filas", f"{df.shape[0]:,}")
+c2.metric("Columnas", df.shape[1])
+c3.metric("Valores faltantes", int(df.isna().sum().sum()))
+c4.metric("Filas duplicadas", int(df.duplicated().sum()))
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Filas", f"{df.shape[0]:,}")
-    c2.metric("Columnas", df.shape[1])
-    c3.metric("Valores faltantes", int(df.isna().sum().sum()))
-    c4.metric("Filas duplicadas", int(df.duplicated().sum()))
+summary_tab, quantitative_tab, qualitative_tab, visual_tab = st.tabs(
+    ["Resumen", "Análisis cuantitativo", "Análisis cualitativo", "Visualización"]
+)
 
-    st.markdown(
-        "<div style='padding:0.8rem 1rem; border-left:4px solid #14b8a6; background:#f0fdf4; border-radius:0.5rem;'>"
-        "<b>Historia del dataset:</b> esta vista inicial ayuda a identificar rápidamente el tamaño del problema, la calidad de los datos y los patrones que merecen atención."
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-    st.subheader("� Insight clave")
-    st.info(
-        "El resumen general ya no está vacío: aquí puedes ver de un vistazo la cantidad de datos, la calidad del dataset y los puntos que conviene explorar primero."
-    )
-
-    st.subheader("�📈 Boxplot comparativo: Producción con y sin riego")
+with summary_tab:
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.subheader("Resumen general")
     st.caption(
-        "Esta comparación permite ver si la presencia de riego cambia de forma marcada la producción de las fincas."
+        "Este bloque reúne la visión inicial del dataset: tamaño, calidad y puntos de partida para la exploración."
     )
+
     if (
         "Produccion_Anual_Ton" in df.columns
         and "Sistema_Riego_Tecnificado" in df.columns
@@ -185,14 +177,11 @@ if section == "Resumen":
         }
     )
     st.dataframe(info, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# -------------------------------------------------------
-# Quantitative analysis
-# -------------------------------------------------------
-
-elif section == "Análisis cuantitativo":
-    st.header("Análisis cuantitativo")
-
+with quantitative_tab:
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.subheader("Análisis cuantitativo")
     if numeric_columns:
         st.subheader("Estadísticas descriptivas")
         st.dataframe(df[numeric_columns].describe().T, use_container_width=True)
@@ -234,14 +223,11 @@ elif section == "Análisis cuantitativo":
             st.pyplot(fig)
     else:
         st.info("No hay variables numéricas disponibles para analizar.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# -------------------------------------------------------
-# Qualitative analysis
-# -------------------------------------------------------
-
-elif section == "Análisis cualitativo":
-    st.header("Análisis cualitativo")
-
+with qualitative_tab:
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.subheader("Análisis cualitativo")
     if categorical_columns:
         selected_cat = st.selectbox(
             "Selecciona una variable categórica", categorical_columns
@@ -266,14 +252,11 @@ elif section == "Análisis cualitativo":
         st.pyplot(fig)
     else:
         st.info("No hay variables categóricas disponibles para analizar.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# -------------------------------------------------------
-# Visual section
-# -------------------------------------------------------
-
-else:
-    st.header("Visualización interactiva")
-
+with visual_tab:
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    st.subheader("Visualización interactiva")
     if numeric_columns and len(numeric_columns) > 1:
         col_x, col_y = st.columns(2)
         x_var = col_x.selectbox("Eje X", numeric_columns, key="x_var")
@@ -284,7 +267,6 @@ else:
             key="y_var",
         )
 
-        st.subheader("Relación entre variables")
         st.caption(
             "Cada punto representa una observación; la línea de tendencia ayuda a interpretar si existe una relación clara entre ambas variables."
         )
@@ -316,3 +298,4 @@ else:
             "Este gráfico resume cuántos valores faltantes hay por variable, facilitando la priorización del limpieza de datos."
         )
         st.bar_chart(df[numeric_columns].isna().sum())
+    st.markdown("</div>", unsafe_allow_html=True)
