@@ -403,10 +403,25 @@ elif seccion == "⚖️ Riego vs. Producción (Boxplot)":
             .reset_index()
         )
 
-        st.dataframe(
-            stats_riego.style.highlight_max(axis=0, color="#D1FAE5"),
-            use_container_width=True,
+        styled_stats_riego = stats_riego.style.set_properties(
+            **{
+                "background-color": "#F8FAFC",
+                "color": "#0F172A",
+                "border": "1px solid #CBD5E1",
+            }
+        ).set_table_styles(
+            [
+                {
+                    "selector": "th",
+                    "props": [
+                        ("background-color", "#E2E8F0"),
+                        ("color", "#0F172A"),
+                        ("font-weight", "bold"),
+                    ],
+                }
+            ]
         )
+        st.dataframe(styled_stats_riego, use_container_width=True)
 
     else:
         st.error(
