@@ -23,7 +23,7 @@ st.markdown(
     <style>
     /* Fondo general claro */
     .main {
-        color: #E6F1F7;
+        color: #008000;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
