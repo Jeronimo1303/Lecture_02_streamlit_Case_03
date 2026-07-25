@@ -14,8 +14,10 @@ except ImportError:  # pragma: no cover
 
 st.set_page_config(page_title="EDA Dashboard", page_icon="📊", layout="wide")
 
-sns.set_theme(style="whitegrid")
+sns.set_theme(style="whitegrid", context="talk")
 plt.rcParams["figure.figsize"] = (8, 4)
+plt.rcParams["axes.titlesize"] = 13
+plt.rcParams["axes.labelsize"] = 11
 
 st.markdown(
     """
@@ -23,27 +25,32 @@ st.markdown(
     .main .block-container {
         padding-top: 1rem;
         padding-bottom: 2rem;
+        background: linear-gradient(135deg, #f8fcff 0%, #f4fbf8 100%);
     }
     .stMetric {
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.75rem;
+        background: linear-gradient(135deg, #ffffff 0%, #f3f9ff 100%);
+        border: 1px solid #dbeafe;
+        border-radius: 0.85rem;
         padding: 0.8rem 0.9rem;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
     }
     [data-testid="stSidebar"] {
-        background-color: #0f172a;
+        background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
     }
     [data-testid="stSidebar"] * {
         color: white;
+    }
+    .stTextInput>div>div>input, .stSelectbox>div>div>div {
+        border-radius: 0.6rem;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-st.title("📊 Exploratory Data Analysis")
+st.title("🌿 Exploratory Data Analysis")
 st.caption(
-    "Analiza datos de forma cuantitativa, cualitativa y visual para obtener una visión más completa del conjunto."
+    "Una mirada clara y guiada a los patrones del dataset, diseñada para que cada gráfica cuente una historia útil y fácil de entender."
 )
 
 
@@ -96,7 +103,17 @@ if section == "Resumen":
     c3.metric("Valores faltantes", int(df.isna().sum().sum()))
     c4.metric("Filas duplicadas", int(df.duplicated().sum()))
 
+    st.markdown(
+        "<div style='padding:0.8rem 1rem; border-left:4px solid #14b8a6; background:#f0fdf4; border-radius:0.5rem;'>"
+        "<b>Historia del dataset:</b> esta vista inicial ayuda a identificar rápidamente el tamaño del problema, la calidad de los datos y los patrones que merecen atención."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
     st.subheader("📈 Boxplot comparativo: Producción con y sin riego")
+    st.caption(
+        "Esta comparación permite ver si la presencia de riego cambia de forma marcada la producción de las fincas."
+    )
     if (
         "Produccion_Anual_Ton" in df.columns
         and "Sistema_Riego_Tecnificado" in df.columns
@@ -108,11 +125,16 @@ if section == "Resumen":
 
         fig_seaborn, ax = plt.subplots(figsize=(9, 4))
         sns.boxplot(
-            data=plot_df, x="Riego", y="Produccion_Anual_Ton", palette="Set2", ax=ax
+            data=plot_df,
+            x="Riego",
+            y="Produccion_Anual_Ton",
+            palette=["#2563eb", "#14b8a6"],
+            ax=ax,
         )
-        ax.set_title("Producción anual por tipo de finca")
+        ax.set_title("Producción anual: comparación entre fincas con y sin riego")
         ax.set_xlabel("Sistema de riego")
         ax.set_ylabel("Producción anual (ton)")
+        ax.set_facecolor("#f8fbff")
         st.pyplot(fig_seaborn)
 
         if px is not None:
@@ -122,8 +144,14 @@ if section == "Resumen":
                 y="Produccion_Anual_Ton",
                 color="Riego",
                 title="Producción anual: con riego vs sin riego",
+                color_discrete_sequence=["#2563eb", "#14b8a6"],
             )
-            fig_plotly.update_layout(height=400)
+            fig_plotly.update_layout(
+                height=400,
+                template="plotly_white",
+                paper_bgcolor="#f8fbff",
+                plot_bgcolor="#f8fbff",
+            )
             st.plotly_chart(fig_plotly, use_container_width=True)
         else:
             st.info(
@@ -165,21 +193,33 @@ elif section == "Análisis cuantitativo":
         )
 
         fig, ax = plt.subplots()
-        sns.histplot(df[selected_num], kde=True, color="#4f46e5", ax=ax)
-        ax.set_title(f"Distribución de {selected_num}")
+        sns.histplot(
+            df[selected_num],
+            kde=True,
+            bins=20,
+            color="#2563eb",
+            edgecolor="white",
+            line_kws={"color": "#0f766e"},
+            ax=ax,
+        )
+        ax.axvline(df[selected_num].mean(), color="#f59e0b", ls="--", lw=2)
+        ax.set_title(f"Distribución de {selected_num}: patrones centrales y dispersión")
+        ax.set_xlabel(selected_num)
+        ax.set_ylabel("Frecuencia")
         col_a.pyplot(fig)
 
         fig, ax = plt.subplots()
-        sns.boxplot(x=df[selected_num], color="#818cf8", ax=ax)
-        ax.set_title(f"Boxplot de {selected_num}")
+        sns.boxplot(x=df[selected_num], color="#60a5fa", ax=ax)
+        ax.set_title(f"Boxplot de {selected_num}: valores atípicos y rango")
+        ax.set_xlabel(selected_num)
         col_b.pyplot(fig)
 
         if len(numeric_columns) > 1:
             st.subheader("Matriz de correlación")
             corr = df[numeric_columns].corr(numeric_only=True)
             fig, ax = plt.subplots(figsize=(10, 8))
-            sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
-            ax.set_title("Correlación entre variables numéricas")
+            sns.heatmap(corr, annot=True, cmap="viridis", fmt=".2f", ax=ax)
+            ax.set_title("Mapa de correlación: relaciones entre variables")
             st.pyplot(fig)
     else:
         st.info("No hay variables numéricas disponibles para analizar.")
@@ -203,9 +243,12 @@ elif section == "Análisis cualitativo":
             use_container_width=True,
         )
 
+        st.caption(
+            "Estas barras muestran qué categorías predominan y cómo se distribuyen los registros."
+        )
         fig, ax = plt.subplots()
-        counts.plot(kind="bar", color="#10b981", ax=ax)
-        ax.set_title(f"Top valores de {selected_cat}")
+        counts.plot(kind="bar", color="#14b8a6", edgecolor="#0f766e", ax=ax)
+        ax.set_title(f"Top valores de {selected_cat}: qué destaca más")
         ax.set_xlabel(selected_cat)
         ax.set_ylabel("Frecuencia")
         plt.xticks(rotation=45, ha="right")
@@ -231,9 +274,25 @@ else:
         )
 
         st.subheader("Relación entre variables")
+        st.caption(
+            "Cada punto representa una observación; la línea de tendencia ayuda a interpretar si existe una relación clara entre ambas variables."
+        )
         fig, ax = plt.subplots()
-        sns.scatterplot(data=df, x=x_var, y=y_var, color="#2563eb", ax=ax)
-        ax.set_title(f"{y_var} vs {x_var}")
+        sns.scatterplot(
+            data=df, x=x_var, y=y_var, color="#2563eb", alpha=0.7, s=90, ax=ax
+        )
+        sns.regplot(
+            data=df,
+            x=x_var,
+            y=y_var,
+            scatter=False,
+            color="#f59e0b",
+            line_kws={"lw": 2},
+            ax=ax,
+        )
+        ax.set_title(f"{y_var} vs {x_var}: relación observada")
+        ax.set_xlabel(x_var)
+        ax.set_ylabel(y_var)
         st.pyplot(fig)
     else:
         st.info(
@@ -242,4 +301,7 @@ else:
 
     if numeric_columns:
         st.subheader("Resumen visual rápido")
+        st.caption(
+            "Este gráfico resume cuántos valores faltantes hay por variable, facilitando la priorización del limpieza de datos."
+        )
         st.bar_chart(df[numeric_columns].isna().sum())
