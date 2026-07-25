@@ -1,10 +1,11 @@
-import streamlit as st
-import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import seaborn as sns
-import matplotlib.pyplot as plt
+import streamlit as st
+from groq import Groq
 
 # ==========================================
 # CONFIGURACIÓN DE PÁGINA Y TEMA DE COLOR
@@ -75,11 +76,9 @@ PALETA_SEABORN = ["#10B981", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6"]
 def cargar_datos():
     try:
         df = pd.read_csv("agro_colombia.csv")
-        # Limpieza básica de nombres de columnas
         df.columns = df.columns.str.strip()
         return df
     except FileNotFoundError:
-        # Generación de dataset sintético de respaldo si el archivo no está en el directorio raíz
         np.random.seed(42)
         n = 500
         departamentos = [
@@ -92,7 +91,6 @@ def cargar_datos():
         cultivos = ["Café", "Aguacate", "Maíz", "Arroz", "Plátano"]
         riego = np.random.choice(["Con Riego", "Sin Riego"], size=n, p=[0.4, 0.6])
 
-        # Producción condicionada por riego para simular patrones reales
         base_prod = np.random.gamma(shape=3, scale=10, size=n)
         produccion = np.where(riego == "Con Riego", base_prod * 1.85, base_prod)
         area = np.random.uniform(5, 100, size=n)
@@ -114,13 +112,11 @@ def cargar_datos():
 
 df = cargar_datos()
 
-# Detectar dinámicamente columnas de Riego y Producción
 col_riego = next((c for c in df.columns if "riego" in c.lower()), None)
 col_prod = next((c for c in df.columns if "prod" in c.lower()), None)
 
 
 def normalizar_riego(series: pd.Series) -> pd.Series:
-    """Convierte valores de riego como True/False, sí/no o texto a dos etiquetas claras."""
     valores = series.astype(str).str.strip().str.lower()
     mapa = {
         "true": "Con Riego",
@@ -150,7 +146,7 @@ else:
     df["Riego_Categorico"] = pd.Series(["Sin Riego"] * len(df), index=df.index)
 
 # ==========================================
-# MENÚ NAVEGACIÓN (HAMBURGER / SIDEBAR)
+# MENÚ NAVEGACIÓN (SIDEBAR)
 # ==========================================
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2908/2908122.png", width=70)
 st.sidebar.title("📌 Menú Principal")
@@ -163,7 +159,17 @@ seccion = st.sidebar.radio(
         "📊 Análisis Cuantitativo",
         "⚖️ Riego vs. Producción (Boxplot)",
         "🎨 Galería de Gráficos (Plotly & Seaborn)",
+        "🤖 Agente de IA (Llama 3.3)",
     ],
+)
+
+# Campo para pedir la API Key en la barra lateral
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔑 Configuración de API")
+groq_api_key = st.sidebar.text_input(
+    "Ingresa tu Groq API Key:",
+    type="password",
+    help="Consigue tu API key en https://console.groq.com/",
 )
 
 st.sidebar.markdown("---")
@@ -174,7 +180,7 @@ st.sidebar.caption("🌾 **EDA Agro Colombia** | Proyecto de Storytelling de Dat
 # ==========================================
 if seccion == "🏠 Resumen Cualitativo":
     st.title("🌾 Análisis Exploratorio del Sector Agrícola")
-    st.subtitle = st.markdown("### Visión General del Dataset")
+    st.markdown("### Visión General del Dataset")
 
     st.markdown(
         """
@@ -188,7 +194,6 @@ if seccion == "🏠 Resumen Cualitativo":
         unsafe_allow_html=True,
     )
 
-    # Métricas Principales
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Total de Registros", f"{len(df):,}")
@@ -223,7 +228,6 @@ if seccion == "🏠 Resumen Cualitativo":
     st.markdown("---")
     st.subheader("🏷️ Distribución Categórica Principal")
 
-    # Identificar primera columna categórica para explorar
     cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
     if cat_cols:
         col_sel = st.selectbox(
@@ -279,15 +283,25 @@ elif seccion == "📊 Análisis Cuantitativo":
 
         fig_corr, ax = plt.subplots(figsize=(8, 4))
         sns.heatmap(
-            corr, annot=True, fmt=".2f", cmap="YlGnBu", ax=ax, cbar=True, linewidths=0.5
+            corr,
+            annot=True,
+            fmt=".2f",
+            cmap="YlGnBu",
+            ax=ax,
+            cbar=True,
+            linewidths=0.5,
         )
         ax.set_title(
-            "Matriz de Correlación de Pearson", fontsize=12, fontweight="bold", pad=10
+            "Matriz de Correlación de Pearson",
+            fontsize=12,
+            fontweight="bold",
+            pad=10,
         )
         st.pyplot(fig_corr)
     else:
         st.warning(
-            "Se requieren al menos 2 variables numéricas para el análisis de correlación."
+            "Se requieren al menos 2 variables numéricas para el análisis de"
+            " correlación."
         )
 
 # ==========================================
@@ -309,7 +323,6 @@ elif seccion == "⚖️ Riego vs. Producción (Boxplot)":
     if col_riego and col_prod:
         col_a, col_b = st.columns(2)
 
-        # --- GRÁFICO INTERACTIVO CON PLOTLY ---
         with col_a:
             st.markdown("### 🔵 Distribución Interactiva (Plotly)")
             fig_box_plotly = px.box(
@@ -331,10 +344,10 @@ elif seccion == "⚖️ Riego vs. Producción (Boxplot)":
             )
             st.plotly_chart(fig_box_plotly, use_container_width=True)
             st.caption(
-                "🔍 **Interactividad:** Pasa el cursor para inspeccionar la mediana, Q1, Q3 y valores atípicos."
+                "🔍 **Interactividad:** Pasa el cursor para inspeccionar la mediana,"
+                " Q1, Q3 y valores atípicos."
             )
 
-        # --- GRÁFICO ESTÁTICO DE ALTA RESOLUCIÓN CON SEABORN ---
         with col_b:
             st.markdown("### 🟢 Comparación Formal (Seaborn)")
             fig_sns, ax = plt.subplots(figsize=(6, 4.5))
@@ -370,10 +383,10 @@ elif seccion == "⚖️ Riego vs. Producción (Boxplot)":
 
             st.pyplot(fig_sns)
             st.caption(
-                "📌 **Lectura:** Los puntos negros muestran la dispersión individual de las fincas observadas."
+                "📌 **Lectura:** Los puntos negros muestran la dispersión individual"
+                " de las fincas observadas."
             )
 
-        # Resumen cuantitativo del impacto
         st.markdown("---")
         st.subheader("📊 Comparativo Cuantitativo de Rendimiento")
 
@@ -395,7 +408,8 @@ elif seccion == "⚖️ Riego vs. Producción (Boxplot)":
 
     else:
         st.error(
-            f"No se detectaron automáticamente las columnas de Riego o Producción. Columnas disponibles: {list(df.columns)}"
+            "No se detectaron automáticamente las columnas de Riego o Producción."
+            f" Columnas disponibles: {list(df.columns)}"
         )
 
 # ==========================================
@@ -404,7 +418,8 @@ elif seccion == "⚖️ Riego vs. Producción (Boxplot)":
 elif seccion == "🎨 Galería de Gráficos (Plotly & Seaborn)":
     st.title("🎨 Visualización Avanzada con Storytelling")
     st.markdown(
-        "Combinación de herramientas dinámicas (**Plotly**) e imprimibles (**Seaborn**) bajo una paleta clara y coherente."
+        "Combinación de herramientas dinámicas (**Plotly**) e imprimibles"
+        " (**Seaborn**) bajo una paleta clara y coherente."
     )
 
     num_cols = df.select_dtypes(include=["number"]).columns.tolist()
@@ -429,7 +444,12 @@ elif seccion == "🎨 Galería de Gráficos (Plotly & Seaborn)":
                 x=var_x,
                 y=var_y,
                 color=col_color,
-                color_discrete_sequence=["#10B981", "#3B82F6", "#F59E0B", "#EF4444"],
+                color_discrete_sequence=[
+                    "#10B981",
+                    "#3B82F6",
+                    "#F59E0B",
+                    "#EF4444",
+                ],
                 title=f"Relación entre {var_x} y {var_y}",
             )
             fig_scatter.update_layout(
@@ -461,3 +481,127 @@ elif seccion == "🎨 Galería de Gráficos (Plotly & Seaborn)":
             sns.despine()
 
             st.pyplot(fig_hist)
+
+# ==========================================
+# SECCIÓN 5: AGENTE DE IA (LLAMA 3.3 VIA GROQ)
+# ==========================================
+elif seccion == "🤖 Agente de IA (Llama 3.3)":
+    st.title("🤖 Agente Experto Agroecológico & Análisis de Datos")
+
+    st.markdown(
+        """
+    <div class="insight-box">
+    <b>💡 Asistente Inteligente Agro Colombia:</b><br>
+    Interactúa con nuestro agente impulsado por <b>Llama 3.3 (70B)</b> de Meta vía Groq. 
+    Puedes hacerle preguntas sobre los datos cargados, pedirle recomendaciones técnicas de cultivo, 
+    o solicitar resúmenes ejecutivos del sector.
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # Verificar si se proporcionó la API Key
+    if not groq_api_key:
+        st.warning(
+            "⚠️ **Requiere API Key de Groq para funcionar.**\n\nPor favor, ingresa"
+            " tu API Key en la **barra lateral (Sidebar)** bajo la sección"
+            " **'🔑 Configuración de API'** para desbloquear la interacción con el"
+            " Agente."
+        )
+    else:
+        # Preparar resumen contextual de los datos para el system prompt
+        resumen_datos = f"""
+        Resumen del Dataset 'Agro Colombia':
+        - Filas totales: {len(df)}
+        - Columnas: {list(df.columns)}
+        - Muestra de primeras 5 filas:
+        {df.head(5).to_string()}
+        - Estadísticas descriptivas básicas:
+        {df.describe().to_string()}
+        """
+
+        SYSTEM_PROMPT = f"""
+        Eres un Agente Experto Agroecológico y Analista de Datos Agrícolas para Colombia.
+        Tu objetivo es responder a las preguntas del usuario de forma profesional, clara, concisa y basada en datos.
+        
+        Tienes acceso directo al siguiente contexto sobre el conjunto de datos actual del proyecto:
+        {resumen_datos}
+        
+        Instrucciones:
+        1. Si la pregunta es sobre el dataset, utiliza el contexto suministrado para dar respuestas precisas.
+        2. Si la pregunta es sobre agronomía, sistemas de riego, cultivos o políticas agrícolas en Colombia, responde con rigor científico y conocimiento del sector.
+        3. Responde siempre en español con un tono profesional pero cercano.
+        """
+
+        # Inicializar el historial del chat en la sesión
+        if "chat_messages" not in st.session_state:
+            st.session_state.chat_messages = [
+                {
+                    "role": "assistant",
+                    "content": (
+                        "¡Hola! 👋 Soy tu Agente Agroecológico basado en Llama 3.3. ¿En"
+                        " qué te puedo ayudar hoy con los datos agrícolas o la"
+                        " producción en Colombia?"
+                    ),
+                }
+            ]
+
+        # Botón para limpiar el chat
+        col_title, col_clean = st.columns([4, 1])
+        with col_clean:
+            if st.button("🗑️ Limpiar Chat"):
+                st.session_state.chat_messages = [
+                    {
+                        "role": "assistant",
+                        "content": (
+                            "Chat reiniciado. ¿Qué consulta deseas realizar sobre el sector"
+                            " agrícola?"
+                        ),
+                    }
+                ]
+                st.rerun()
+
+        # Mostrar mensajes previos
+        for msg in st.session_state.chat_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+        # Entrada del usuario
+        if prompt_usuario := st.chat_input(
+            "Escribe tu pregunta sobre el dataset o temas agrícolas..."
+        ):
+            st.chat_message("user").markdown(prompt_usuario)
+            st.session_state.chat_messages.append(
+                {"role": "user", "content": prompt_usuario}
+            )
+
+            with st.chat_message("assistant"):
+                with st.spinner("Pensando respuesta con Llama 3.3..."):
+                    try:
+                        client = Groq(api_key=groq_api_key)
+
+                        mensajes_api = [{"role": "system", "content": SYSTEM_PROMPT}]
+                        for m in st.session_state.chat_messages:
+                            mensajes_api.append(
+                                {"role": m["role"], "content": str(m["content"])}
+                            )
+
+                        response = client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=mensajes_api,
+                            temperature=0.6,
+                            max_tokens=1024,
+                        )
+
+                        respuesta_texto = response.choices[0].message.content
+                        st.markdown(respuesta_texto)
+
+                        st.session_state.chat_messages.append(
+                            {"role": "assistant", "content": respuesta_texto}
+                        )
+
+                    except Exception as e:
+                        st.error(
+                            f"Error al conectar con la API de Groq: {e}. Revisa que tu API"
+                            " Key sea correcta."
+                        )
